@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+  namespace: webapp
+  labels:
+    app: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      shareProcessNamespace: true #so sidecar can change nginx
+      initContainers:
+        - name: init-done
+          image: busybox:1.36
+          command: ["sh", "-c", "echo done"]
+      containers:
+        - name: nginx
+          image: nginx:1.27
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "<h1>hello in MLOPS MENA COMMUNITY : $(date '+%Y-%m-%d %H:%M:%S')</h1>" > /usr/share/nginx/html/index.html
+              exec nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80
+        - name: time-updater
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args: 
+            - |
+              while true; do
+                 PID=$(pgrep -o nginx)
+                 if [ -n "$PID" ]; then
+                   echo "<h1>hello in MLOPS MENA COMMUNITY : $(date '+%Y-%m-%d %H:%M:%S')</h1>" > /proc/$PID/root/usr/share/nginx/html/index.html
+                 fi
+                 sleep 5
+              done
+          securityContext:
+            capabilities:
+              add: ["SYS_PTRACE"]
