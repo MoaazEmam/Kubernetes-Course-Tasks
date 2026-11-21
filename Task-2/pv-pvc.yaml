@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv #cluster-scoped, no namespace
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /data/webapp-mysql
+    type: DirectoryOrCreate
+  nodeAffinity: #hostPath lives on one node only, so pin every pod using this PV to it
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [k8s-w1]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: webapp-stack
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: manual
+  volumeName: mysql-pv
+  resources:
+    requests:
+      storage: 2Gi
